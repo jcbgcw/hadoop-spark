@@ -1,0 +1,117 @@
+CREATE TABLE Statement
+=======================
+Explicit column definitions:
+  CREATE [EXTERNAL] TABLE [IF NOT EXISTS] [db_name.]table_name
+  (col_name data_type
+    [COMMENT 'col_comment']
+    [, ...]
+  )
+  [PARTITIONED BY (col_name data_type [COMMENT 'col_comment'], ...)]
+  [COMMENT 'table_comment']
+  [WITH SERDEPROPERTIES ('key1'='value1', 'key2'='value2', ...)]
+  [
+   [ROW FORMAT row_format] [STORED AS file_format]
+  ]
+  [LOCATION 'hdfs_path']
+  [TBLPROPERTIES ('key1'='value1', 'key2'='value2', ...)]
+  [CACHED IN 'pool_name' [WITH REPLICATION = integer] | UNCACHED]
+
+CREATE TABLE AS SELECT (CTAS):
+  CREATE [EXTERNAL] TABLE [IF NOT EXISTS] db_name.]table_name
+    [PARTITIONED BY (col_name[, ...])]
+    [COMMENT 'table_comment']
+    [WITH SERDEPROPERTIES ('key1'='value1', 'key2'='value2', ...)]
+    [
+     [ROW FORMAT row_format] [STORED AS ctas_file_format]
+    ]
+    [LOCATION 'hdfs_path']
+    [TBLPROPERTIES ('key1'='value1', 'key2'='value2', ...)]
+    [CACHED IN 'pool_name' [WITH REPLICATION = integer] | UNCACHED]
+  AS
+    select_statemen
+Column definitions inferred from data file:
+  CREATE [EXTERNAL] TABLE [IF NOT EXISTS] [db_name.]table_name
+    LIKE PARQUET 'hdfs_path_of_parquet_file'
+    [COMMENT 'table_comment']
+    [PARTITIONED BY (col_name data_type [COMMENT 'col_comment'], ...)]
+    [WITH SERDEPROPERTIES ('key1'='value1', 'key2'='value2', ...)]
+    [
+     [ROW FORMAT row_format] [STORED AS file_format]
+    ]
+    [LOCATION 'hdfs_path']
+    [TBLPROPERTIES ('key1'='value1', 'key2'='value2', ...)]
+    [CACHED IN 'pool_name' [WITH REPLICATION = integer] | UNCACHED]
+  data_type:
+      primitive_type
+    | array_type
+    | map_type
+    | struct_type
+
+hive> alter table rename to
+
+hive> create external table TBL
+      ROW FORMAT SERDE 'SerDe class' STORED AS INPUTFORMAT 'InputFormat Class' OUTPUTFORMAT 'OutputFormat Class'
+      LOCATION 'hdfs path'
+      TBLPROPERTIES('avro.schema.url'='hdfs avsc path');
+
+hive> create external table TBL
+      ROW FORMAT SERDE 'org.apache.hadoop.hive.contrib.serde2.RegexSerde'
+      TBLPROPERTIES('input.regex'='....');
+hive> add jar /usr/lib/hive/lib/hive-contrib.jar
+
+hive> create external table TBL ... STORED AS AVRO;
+
+hive> create external table TBL ...
+      ROW FORMAT delimited
+      fields terminated by '|'
+      collection items terminated by ','
+      map keys terminated by ':'
+      lines terminated by '\n'
+      stored as textfile;
+
+hive> A join B on A.c1=B.c1
+
+hive> create table order_static (order_id int, order_date string, order_customer_id int, order_status string)
+      partitioned by (order_month string)
+hive> alter table ... add partition(order_month='2014-01'), partition(order_month='2014-02') ...
+hive> insert into order_static partition(order_month='2014-01') select ...
+
+hive> set hive.exec.dynamic.partition=true;
+hive> set hive.exec.dynamic.partition.mode=nonstrict;
+
+hive> create table order_nonstrict (order_id int, order_date string, order_customer_id int, order_status string)
+      partitioned by (order_year string, order_month string)
+hive> insert into order_nonstrict partition(order_year, order_month) select order_year, order_month, ...
+
+hive> set hive.exec.dynamic.partition=true;
+hive> set hive.exec.dynamic.partition.mode=strict;
+hive> create table order_strict (order_id int, order_date string, order_customer_id int, order_status string)
+      partitioned by (order_year string, order_month string)
+hive> insert into order_strict partition(order_year='2013', order_month) select order_month, ...
+
+CREATE TABLE apachelog (
+  host STRING,
+  identity STRING,
+  user STRING,
+  time STRING,
+  request STRING,
+  status STRING,
+  size STRING,
+  referer STRING,
+  agent STRING)
+ROW FORMAT SERDE 'org.apache.hadoop.hive.serde2.RegexSerDe'
+WITH SERDEPROPERTIES (
+  "input.regex" = "([^]*) ([^]*) ([^]*) (-|\\[^\\]*\\]) ([^ \"]*|\"[^\"]*\") (-|[0-9]*) (-|[0-9]*)(?: ([^ \"]*|\".*\") ([^ \"]*|\".*\"))?"
+)
+STORED AS TEXTFILE;
+
+ADD JAR /usr/lib/hive-hcatalog/lib/hive-hcatalog-core.jar;
+
+CREATE TABLE my_table(a string, b bigint, ...)
+ROW FORMAT SERDE 'org.apache.hive.hcatalog.data.JsonSerDe'
+STORED AS TEXTFILE;
+
+select order_item_id, order_item_order_id,
+    RANK() OVER (ORDER BY order_item_subtotal) as rank,
+    RANK() OVER (PARTITION BY order_item_order_id order by order_item_subtotal ) subrank
+    from order_items;

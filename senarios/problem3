@@ -1,0 +1,44 @@
+http://arun-teaches-u-tech.blogspot.sg/p/cca-175-hadoop-and-spark-developer-exam_28.html
+
+sqoop import-all-tables --connect jdbc:mysql://quickstart:3306/retail_db --username retail_dba --password cloudera \
+ --warehouse-dir /user/hive/warehouse/retail_stage.db --as-avrodatafile -z --compression-codec snappy -m 1
+
+hadoop fs -get retail_stage.db/orders/part-m-00000.avro
+avro-tools getschema part-m-00000.avro > orders.avsc
+hadoop fs -put -f orders.avsc  /user/hive/schema/orders.avsc
+
+create database retail_stage;
+use retail_stage;
+
+create external table orders_sqoop stored as avro location '/user/hive/warehouse/retail_stage.db/orders'
+    tblproperties("avro.schema.url"="/user/hive/schema/orders.avsc");
+
+select o1.* from orders_sqoop o1 where o1.order_date in (
+    select a.order_date from (
+        select o2.order_date, count(1) num from orders_sqoop o2 group by o2.order_date order by num desc limit 1) a);
+
+create database retail;
+use retail;
+create table orders_avro(order_id int, order_date bigint, order_customer_id int, order_status string) partitioned by (order_month string) stored as avro;
+
+hive -e "set;"|grep "partition"
+set hive.exec.dynamic.partition.mode=nonstrict;
+insert into orders_avro partition order_month select o.*, from_unixtime(cast(o.order_date/1000 as bigint),'YYYY-MM') order_month from retail_stage.orders_sqoop o;
+
+select o1.* from orders_avro o1 where o1.order_date in (
+    select a.order_date from (
+        select o2.order_date, count(1) num from orders_avro o2 group by o2.order_date order by num desc limit 1) a);
+
+vi
+hadoop fs -put -f orders.avsc  /user/hive/schema/orders.avsc
+
+use retaii_stage;
+select * from orders_sqoop limit 10;
+select max(order_id) from orders_sqoop;
+insert into orders_sqoop values (68884,1,1,'PENDING','stype 1',1);
+insert into orders_sqoop values (68885,2,2,'DONE','stype 2',2);
+select * from orders_sqoop where order_id > 68883;
+
+select o1.* from orders_sqoop o1 where o1.order_date in (
+    select a.order_date from (
+        select o2.order_date, count(1) num from orders_sqoop o2 group by o2.order_date order by num desc limit 1) a);
